@@ -10,7 +10,7 @@ app.use(cors());
 const TELEGRAM_BOT_TOKEN = '9246537010:AAH2ocUoCZtCaoa72JmBz45yO-ykOOtiw6w'; 
 
 // 2. Сюда мы вставим ссылку от Render (например, https://my-farm-bot.onrender.com)
-const RENDER_EXTERNAL_URL = 'ССЫЛКА_ОТ_RENDER'; 
+const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com'; 
 
 // Создаем бота БЕЗ polling (так как он будет работать на хостинге)
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
