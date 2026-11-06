@@ -7,7 +7,7 @@ app.use(express.json());
 app.use(cors());
 
 // Твой токен от BotFather
-const TELEGRAM_BOT_TOKEN = '9246537010:AAH2ocUoQZtCcaoa721mBz45y0-yk00tiw6w';
+const TELEGRAM_BOT_TOKEN = '9246537010:AAFX9DnhEPsrbz9lEZtsAEnlv5C_6_N6tAM';
 // Твоя ссылка от Render
 const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com';
 
