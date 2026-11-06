@@ -6,15 +6,16 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Твой токен от BotFather
-const TELEGRAM_BOT_TOKEN = '9246537010:AAFX9DnhEPsrbz9lEZtsAEnlv5C_6_N6tAM';
-// Твоя ссылка от Render
-const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com';
+// 1. Твой токен от BotFather
+const TELEGRAM_BOT_TOKEN = '9246537010:AAFX9DnhEPsrbz9lEZtsAEnlv5C_6_N6tAM'; 
 
-// Создаем бота БЕЗ polling (так как он будет работать на хостинге через Webhook)
+// 2. Твоя ссылка от Render
+const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com'; 
+
+// Создаем бота БЕЗ polling (так как он работает на хостинге)
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
 
-// Список товаров
+// Список товаров (должен совпадать с index.html)
 const SHOP = {
   'coins_1m': { title: '1 Миллион монет', price: 50, desc: 'Мгновенно начислит 1 000 000 монет.' },
   'coins_10m': { title: '10 Миллионов монет', price: 300, desc: 'Мгновенно начислит 10 000 000 монет.' },
@@ -24,58 +25,48 @@ const SHOP = {
   'vip': { title: 'VIP Статус', price: 1000, desc: 'Навсегда дает +50% ко всему доходу и золотой ник.' }
 };
 
-// API для создания счета из игры
-app.post('/api/create-invoice', async (req, res) => {
-  try {
-    const { productId } = req.body;
-    const product = SHOP[productId];
-
-    if (!product) {
-      return res.status(400).json({ error: 'Товар не найден' });
-    }
-
-    // Создаем инвойс через Telegram Stars API
-    const invoice = await bot.createInvoiceLink(
-      product.title,
-      product.desc,
-      productId, // payload
-      '', // provider_token (пусто для Stars)
-      'XTR', // currency (Telegram Stars)
-      [{ label: product.title, amount: product.price }] // prices
-    );
-
-    res.json({ invoiceLink: invoice });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при создании счета' });
-  }
-});
-
-// Обработка Webhook (сюда Telegram присылает уведомления об оплате)
+// --- Webhook endpoint: сюда Telegram будет присылать сообщения об оплате ---
 app.post(`/webhook/${TELEGRAM_BOT_TOKEN}`, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
 
-// Обработка предоплаты (нужно подтверждать, чтобы Telegram показал окно оплаты)
-bot.on('pre_checkout_query', (query) => {
-  bot.answerPreCheckoutQuery(query.id, true);
+// 1. Игра просит создать счет
+app.post('/api/create-invoice', async (req, res) => {
+  const { productId } = req.body;
+  const product = SHOP[productId];
+  if (!product) return res.status(400).json({ error: 'Товар не найден' });
+
+  try {
+    const invoiceLink = await bot.createInvoiceLink(
+      product.title,
+      product.desc,
+      productId,
+      '',
+      'XTR',
+      [{ label: product.title, amount: product.price }]
+    );
+    res.json({ invoiceLink });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка создания счета' });
+  }
 });
 
-// Обработка успешного платежа
+// 2. Telegram присылает уведомление об оплате
 bot.on('successful_payment', (msg) => {
   const payload = msg.successful_payment.invoice_payload;
-  const userId = msg.from.id;
-  console.log(`✅ Пользователь ${userId} купил ${payload}`);
+  const chatId = msg.chat.id;
+  bot.sendMessage(chatId, `✅ Оплата прошла! Вы купили: ${SHOP[payload].title}. Спасибо!`);
 });
-
-// Установка Webhook при запуске сервера
-bot.setWebHook(`${RENDER_EXTERNAL_URL}/webhook/${TELEGRAM_BOT_TOKEN}`)
-  .then(() => console.log('Webhook успешно установлен!'))
-  .catch((err) => console.error('Ошибка установки Webhook:', err));
 
 // Запуск сервера
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Сервер успешно запущен на порту ${PORT}`);
+  
+  // Сообщаем Telegram, куда присылать сообщения
+  bot.setWebHook(`${RENDER_EXTERNAL_URL}/webhook/${TELEGRAM_BOT_TOKEN}`)
+    .then(() => console.log('Webhook успешно установлен!'))
+    .catch(err => console.error('Ошибка установки webhook:', err));
 });
