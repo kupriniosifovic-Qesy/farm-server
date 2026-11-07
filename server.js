@@ -266,13 +266,33 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     
     // Проверяем, чтобы пользователь не пригласил сам себя
     if (referrerId !== telegramId) {
-      try {
+            try {
         // Сохраняем того, кто пригласил, в базу данных игроку
         await playersCollection.updateOne(
           { telegramId: telegramId },
-          { $set: { referredBy: referrerId } },
+          { 
+            $set: { referredBy: referrerId },
+            $setOnInsert: { 
+              username: msg.from.username || msg.from.first_name || 'Фермер',
+              coins: 100, level: 1, xp: 0, stars: 0,
+              plots: Array.from({ length: 6 }, () => null),
+              animals: {}, upgrades: {}, rarityUp: {},
+              tools: { bucket: 0, can: 0, sprinkler: 0, drone: 0, harvester: 0 },
+              animalUpgrades: {},
+              greenhouse: { planted: null, upgrades: { light: 0, soil: 0, fence: 0 }, readyAt: 0 },
+              hasAutoCollector: false, hasSpeedBooster: false, isVip: false,
+              dailyStreak: 0, lastDailyClaim: 0, usedPromos: [],
+              achievements: {}, stats: { harvests: 0, ghHarvests: 0, rainbow: 0 },
+              referralCount: 0, referralRewarded: false,
+              lastSeen: new Date(), createdAt: new Date()
+            }
+          },
           { upsert: true } 
         );
+        console.log(`✅ Пользователь ${telegramId} пришел по реферальной ссылке от ${referrerId}`);
+      } catch (err) {
+        console.error('Ошибка сохранения реферала:', err);
+      }
         console.log(`✅ Пользователь ${telegramId} пришел по реферальной ссылке от ${referrerId}`);
       } catch (err) {
         console.error('Ошибка сохранения реферала:', err);
