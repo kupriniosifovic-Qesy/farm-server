@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(cors());
 
 // ==================== НАСТРОЙКИ ====================
-const TELEGRAM_BOT_TOKEN = '9246537010:AAFX9DnhEPsrbz9lEZtsAEnlv5C_6_N6tAM';
+const TELEGRAM_BOT_TOKEN = '9246537010:AAEFGwCVwXbgUwJWFI0Su4_T2Bq2kHvsh20';
 const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com';
 // Твоя строка подключения к MongoDB (с базой farmGame и параметром authSource)
 const MONGODB_URI = 'mongodb+srv://farmer:NgW9maSv4bVYIyIV@farmcluster.pr639l2.mongodb.net/farmGame?retryWrites=true&w=majority&authSource=admin';
