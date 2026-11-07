@@ -12,7 +12,7 @@ app.use(cors());
 const TELEGRAM_BOT_TOKEN = '9246537010:AAEFGwCVwXbgUwJWFI0Su4_T2Bq2kHvsh20';
 const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com';
 // Твоя строка подключения к MongoDB (с базой farmGame и параметром authSource)
-const MONGODB_URI = 'mongodb+srv://farmer:NgW9maSv4bVYIyIV@farmcluster.pr639l2.mongodb.net/farmGame?retryWrites=true&w=majority&authSource=admin';
+const MONGODB_URI = 'mongodb+srv://farmesGames:QZwWBTW9Zw58dMl5@farmcluster.pr639l2.mongodb.net/farmGame?retryWrites=true&w=majority&authSource=admin';
 // Ссылка на игру (GitHub Pages)
 const GAME_URL = 'https://kupriniosifovic-qesy.github.io/farm-game/';
 
