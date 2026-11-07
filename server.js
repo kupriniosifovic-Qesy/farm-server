@@ -250,7 +250,7 @@ bot.onText(/\/start/, (msg) => {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: '🌾 ИГРАТЬ', web_app: { url: 'https://crimson-susy-95.tiiny.site' } }],
+        [{ text: '🌾 ИГРАТЬ', web_app: { url: 'https://divine-cell-273f.kupriinosifovic.workers.dev' } }],
         [{ text: '📖 Как играть?', callback_data: 'help_game' }],
         [{ text: '⭐ Что такое Stars?', callback_data: 'help_stars' }],
         [{ text: '📢 Наш Телеграм-канал', url: 'https://t.me/QesyGames_Official' }]
