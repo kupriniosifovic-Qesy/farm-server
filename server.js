@@ -1,37 +1,187 @@
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const cors = require('cors');
+const { MongoClient } = require('mongodb');
+const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// 1. Твой токен от BotFather
-const TELEGRAM_BOT_TOKEN = '9246537010:AAFX9DnhEPsrbz9lEZtsAEnlv5C_6_N6tAM'; 
+// ==================== НАСТРОЙКИ ====================
+const TELEGRAM_BOT_TOKEN = '9246537010:AAFX9DnhEPsrbz9lEZtsAEnlv5C_6_N6tAM';
+const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com';
+// ТВОЯ СТРОКА ПОДКЛЮЧЕНИЯ К MONGODB
+const MONGODB_URI = 'mongodb+srv://kupriinosifovic_db_user:BNLxciB5FxvWs2r3@farmcluster.pr639l2.mongodb.net/farmGame?retryWrites=true&w=majority';
 
-// 2. Твоя ссылка от Render
-const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com'; 
-
-// Создаем бота БЕЗ polling (так как он работает на хостинге)
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
 
-// Список товаров (должен совпадать с index.html)
+// ==================== ПОДКЛЮЧЕНИЕ К MONGODB ====================
+const client = new MongoClient(MONGODB_URI);
+let db, playersCollection;
+
+async function connectToMongo() {
+  try {
+    await client.connect();
+    db = client.db('farmGame');
+    playersCollection = db.collection('players');
+    await playersCollection.createIndex({ telegramId: 1 }, { unique: true });
+    console.log('✅ Успешно подключено к MongoDB');
+  } catch (err) {
+    console.error('❌ Ошибка подключения к MongoDB:', err);
+    process.exit(1);
+  }
+}
+connectToMongo();
+
+// ==================== ВАЛИДАЦИЯ TELEGRAM initData ====================
+function validateInitData(initData) {
+  try {
+    const params = new URLSearchParams(initData);
+    const hash = params.get('hash');
+    if (!hash) return { valid: false, error: 'No hash' };
+
+    params.delete('hash');
+    const dataCheckString = Array.from(params.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n');
+
+    const secretKey = crypto
+      .createHmac('sha256', 'WebAppData')
+      .update(TELEGRAM_BOT_TOKEN)
+      .digest();
+
+    const calculatedHash = crypto
+      .createHmac('sha256', secretKey)
+      .update(dataCheckString)
+      .digest('hex');
+
+    const isValid = calculatedHash === hash;
+
+    if (!isValid) {
+      return { valid: false, error: 'Invalid hash' };
+    }
+
+    const authDate = parseInt(params.get('auth_date'), 10);
+    const now = Math.floor(Date.now() / 1000);
+    if (now - authDate > 86400) {
+      return { valid: false, error: 'Data is too old' };
+    }
+
+    const user = JSON.parse(params.get('user'));
+    return { valid: true, user };
+  } catch (err) {
+    return { valid: false, error: 'Parsing error' };
+  }
+}
+
+// ==================== API ДЛЯ ИГРЫ ====================
+app.post('/api/get-player', async (req, res) => {
+  try {
+    const { initData } = req.body;
+    const validation = validateInitData(initData);
+
+    if (!validation.valid) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = validation.user;
+    const telegramId = user.id.toString();
+
+    let player = await playersCollection.findOne({ telegramId });
+
+    if (!player) {
+      const newPlayer = {
+        telegramId,
+        username: user.username || user.first_name || 'Фермер',
+        coins: 100,
+        level: 1,
+        xp: 0,
+        plots: Array.from({ length: 6 }, () => null),
+        animals: {},
+        upgrades: {},
+        rarityUp: {},
+        tools: { bucket: 0, can: 0, sprinkler: 0, drone: 0, harvester: 0 },
+        animalUpgrades: {},
+        greenhouse: { planted: null, upgrades: { light: 0, soil: 0, fence: 0 }, readyAt: 0 },
+        hasAutoCollector: false,
+        hasSpeedBooster: false,
+        isVip: false,
+        dailyStreak: 0,
+        lastDailyClaim: 0,
+        usedPromos: [],
+        achievements: {},
+        stats: { harvests: 0, ghHarvests: 0, rainbow: 0 },
+        lastSeen: new Date(),
+        createdAt: new Date()
+      };
+      await playersCollection.insertOne(newPlayer);
+      player = newPlayer;
+    } else {
+      await playersCollection.updateOne(
+        { telegramId },
+        { $set: { lastSeen: new Date(), username: user.username || user.first_name || player.username } }
+      );
+    }
+
+    delete player._id;
+    delete player.createdAt;
+    res.json({ success: true, player });
+  } catch (err) {
+    console.error('Ошибка в /api/get-player:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/save-player', async (req, res) => {
+  try {
+    const { initData, playerData } = req.body;
+    const validation = validateInitData(initData);
+
+    if (!validation.valid) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const telegramId = validation.user.id.toString();
+
+    if (playerData.coins < 0 || playerData.level < 1 || (playerData.xp && playerData.xp < 0)) {
+      return res.status(400).json({ error: 'Invalid data' });
+    }
+
+    delete playerData._id;
+    delete playerData.telegramId;
+    delete playerData.createdAt;
+    playerData.lastSeen = new Date();
+
+    await playersCollection.updateOne(
+      { telegramId },
+      { $set: playerData },
+      { upsert: false }
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Ошибка в /api/save-player:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== ПЛАТЕЖИ (TELEGRAM STARS) ====================
 const SHOP = {
-  'coins_1m': { title: '1 Миллион монет', price: 50, desc: 'Мгновенно начислит 1 000 000 монет.' },
-  'coins_10m': { title: '10 Миллионов монет', price: 300, desc: 'Мгновенно начислит 10 000 000 монет.' },
-  'coins_100m': { title: '100 Миллионов монет', price: 899, desc: 'Мгновенно начислит 100 000 000 монет.' },
+  'coins_1m':   { title: '1 Миллион монет', price: 50, desc: 'Мгновенно начислит 1 000 000 монет.' },
+  'coins_10m':  { title: '10 Миллионов монет', price: 300, desc: 'Мгновенно начислит 10 000 000 монет.' },
+  'coins_100m': { title: '100 Миллионов монет', price: 1500, desc: 'Мгновенно начислит 100 000 000 монет.' },
   'autocollector': { title: 'Автосборщик', price: 150, desc: 'Собирает урожай сам каждые 10 секунд навсегда.' },
-  'speedbooster': { title: 'Вечный ускоритель', price: 400, desc: 'Навсегда ускоряет рост растений в 2 раза.' },
-  'vip': { title: 'VIP Статус', price: 1000, desc: 'Навсегда дает +50% ко всему доходу и золотой ник.' }
+  'speedbooster':  { title: 'Вечный ускоритель', price: 400, desc: 'Навсегда ускоряет рост растений в 2 раза.' },
+  'vip':           { title: 'VIP Статус', price: 1000, desc: 'Навсегда дает +50% ко всему доходу и золотой ник.' }
 };
 
-// --- Webhook endpoint: сюда Telegram будет присылать сообщения об оплате ---
 app.post(`/webhook/${TELEGRAM_BOT_TOKEN}`, (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
 
-// 1. Игра просит создать счет
 app.post('/api/create-invoice', async (req, res) => {
   const { productId } = req.body;
   const product = SHOP[productId];
@@ -53,99 +203,39 @@ app.post('/api/create-invoice', async (req, res) => {
   }
 });
 
-// 2. Telegram присылает уведомление об оплате
-bot.on('successful_payment', (msg) => {
+bot.on('successful_payment', async (msg) => {
+  const chatId = msg.chat.id;
   const payload = msg.successful_payment.invoice_payload;
-  const chatId = msg.chat.id;
-  bot.sendMessage(chatId, `✅ Оплата прошла! Вы купили: ${SHOP[payload].title}. Спасибо!`);
-});
-// ================= КРАСИВОЕ МЕНЮ БОТА И ОБУЧЕНИЕ =================
+  const telegramId = msg.from.id.toString();
 
-// Обработчик команды /start
-bot.onText(/\/start/, (msg) => {
-  const chatId = msg.chat.id;
-  const userName = msg.from.first_name || 'друг';
-  
-  const text = `
-👋 <b>Привет, ${userName}!</b>
-
-Добро пожаловать в <b>«Ферма: Империя»</b> — увлекательную экономическую игру прямо в Telegram! 🌾
-
-Здесь ты сможешь построить свою собственную фермерскую империю, выращивать редкие культуры, разводить животных и зарабатывать настоящие Telegram Stars! ⭐
-
-Жми кнопку ниже, чтобы начать свое восхождение к богатству! 👇
-  `;
-
-  bot.sendMessage(chatId, text, {
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🌾 ИГРАТЬ', web_app: { url: 'https://classy-speculoos-95b985.netlify.app' } }],
-        [{ text: '📖 Как играть?', callback_data: 'help_game' }],
-        [{ text: '⭐ Что такое Stars?', callback_data: 'help_stars' }],
-        [{ text: '💬 Поддержка', url: 'https://t.me/Qesyj' }] // Замени на свой ник!
-      ]
+  try {
+    const player = await playersCollection.findOne({ telegramId });
+    if (!player) {
+      console.error('Игрок не найден:', telegramId);
+      return bot.sendMessage(chatId, '❌ Ошибка: игрок не найден.');
     }
-  });
-});
 
-// Обработка нажатий на кнопки "Как играть" и "Что такое Stars"
-bot.on('callback_query', (query) => {
-  const chatId = query.message.chat.id;
-  
-  if (query.data === 'help_game') {
-    bot.answerCallbackQuery(query.id, { text: 'Загружаем инструкцию...' });
-    
-    const helpText = `
-📖 <b>ИНСТРУКЦИЯ ПО ВЫЖИВАНИЮ</b> 🌱
+    const updates = {};
+    if (payload === 'coins_1m') updates.coins = (player.coins || 0) + 1000000;
+    else if (payload === 'coins_10m') updates.coins = (player.coins || 0) + 10000000;
+    else if (payload === 'coins_100m') updates.coins = (player.coins || 0) + 100000000;
+    else if (payload === 'autocollector') updates.hasAutoCollector = true;
+    else if (payload === 'speedbooster') updates.hasSpeedBooster = true;
+    else if (payload === 'vip') updates.isVip = true;
 
-1️⃣ <b>Посадка:</b> Зайди во вкладку «Ферма», выбери семена и нажми «Посадить». 
-2️⃣ <b>Сбор урожая:</b> Когда таймер закончится, нажми на грядку, чтобы собрать урожай и получить монеты!
-3️⃣ <b>Животные:</b> Покупай курочек и коров — они дают пассивный доход каждую секунду!
-4️⃣ <b>Улучшения:</b> Трать монеты на ускорение роста и повышение цен.
-5️⃣ <b>Колесо Фортуны:</b> Крути колесо 🎡 в правом нижнем углу игры, чтобы выиграть джекпот!
-
-🔒 <b>Уровни:</b> Чем больше ты собираешь урожая, тем выше твой уровень. Новые семена и животные открываются по мере прокачки!
-    `;
-    
-    bot.sendMessage(chatId, helpText, { 
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [[{ text: '🌾 Понятно, играть!', web_app: { url: 'https://classy-speculoos-95b985.netlify.app' } }]]
-      }
-    });
-  }
-  
-  if (query.data === 'help_stars') {
-    bot.answerCallbackQuery(query.id, { text: 'Информация о Stars' });
-    
-    const starsText = `
-⭐ <b>Telegram Stars (Звезды)</b> — это официальная валюта Telegram.
-
-Зачем они нужны в игре?
-В нашем магазине (вкладка «Донат») ты можешь купить за звездочки мощные бонусы:
-🤖 <b>Автосборщик</b> — собирает урожай за тебя каждые 10 секунд.
-⚡ <b>Вечный ускоритель</b> — растения растут в 2 раза быстрее навсегда.
-👑 <b>VIP-статус</b> — дает +50% к общему доходу.
-💰 <b>Пакеты монет</b> — для быстрого старта.
-
-Все покупки навсегда сохраняются в твоем аккаунте и не сгорают при перерождении (Престиже)!
-    `;
-    
-    bot.sendMessage(chatId, starsText, { 
-      parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [[{ text: '⭐ Перейти в магазин', web_app: { url: 'https://classy-speculoos-95b985.netlify.app' } }]]
-      }
-    });
+    await playersCollection.updateOne({ telegramId }, { $set: updates });
+    bot.sendMessage(chatId, `✅ Оплата прошла! Вы купили: ${SHOP[payload].title}. Спасибо!`);
+  } catch (err) {
+    console.error('Ошибка при обработке платежа:', err);
+    bot.sendMessage(chatId, '❌ Произошла ошибка при начислении награды. Обратитесь в поддержку.');
   }
 });
-// Запуск сервера
+
+// ==================== ЗАПУСК СЕРВЕРА ====================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Сервер успешно запущен на порту ${PORT}`);
-  
-  // Сообщаем Telegram, куда присылать сообщения
+
   bot.setWebHook(`${RENDER_EXTERNAL_URL}/webhook/${TELEGRAM_BOT_TOKEN}`)
     .then(() => console.log('Webhook успешно установлен!'))
     .catch(err => console.error('Ошибка установки webhook:', err));
