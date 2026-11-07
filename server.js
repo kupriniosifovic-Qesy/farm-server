@@ -119,7 +119,25 @@ app.post('/api/get-player', async (req, res) => {
       };
       await playersCollection.insertOne(newPlayer);
       player = newPlayer;
-    } else {
+       } else {
+      // ЛОГИКА РЕФЕРАЛЬНОЙ НАГРАДЫ
+      if (player.level >= 3 && player.referredBy && !player.referralRewarded) {
+        const referrer = await playersCollection.findOne({ telegramId: player.referredBy });
+        if (referrer) {
+          // Начисляем монеты другу
+          await playersCollection.updateOne({ telegramId: player.referredBy }, { $inc: { coins: 500000, referralCount: 1 } });
+          // Начисляем монеты приглашенному и ставим флаг
+          await playersCollection.updateOne({ telegramId }, { $inc: { coins: 500000 }, $set: { referralRewarded: true } });
+          
+          // Уведомляем пригласившего в бота
+          bot.sendMessage(player.referredBy, '🎉 Ваш друг достиг 3 уровня! Вы получили +500 000 монет!').catch(()=>{});
+          
+          // Обновляем текущую сессию, чтобы игрок сразу увидел монеты
+          player.coins = (player.coins || 0) + 500000;
+          player.referralRewarded = true;
+        }
+      }
+
       await playersCollection.updateOne(
         { telegramId },
         { $set: { lastSeen: new Date(), username: user.username || user.first_name || player.username } }
@@ -289,10 +307,6 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
           },
           { upsert: true } 
         );
-        console.log(`✅ Пользователь ${telegramId} пришел по реферальной ссылке от ${referrerId}`);
-      } catch (err) {
-        console.error('Ошибка сохранения реферала:', err);
-      }
         console.log(`✅ Пользователь ${telegramId} пришел по реферальной ссылке от ${referrerId}`);
       } catch (err) {
         console.error('Ошибка сохранения реферала:', err);
