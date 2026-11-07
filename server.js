@@ -252,9 +252,36 @@ bot.on('successful_payment', async (msg) => {
 });
 
 // ==================== КРАСИВОЕ МЕНЮ БОТА ====================
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start(.*)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const userName = msg.from.first_name || 'друг';
+  
+  // ==================== РЕФЕРАЛЬНАЯ СИСТЕМА ====================
+  const refParam = match[1].trim(); // Получаем текст после /start (например, " ref_12345")
+  const telegramId = msg.from.id.toString();
+
+  // Если в ссылке был параметр ref_
+  if (refParam.startsWith('ref_')) {
+    const referrerId = refParam.replace('ref_', '');
+    
+    // Проверяем, чтобы пользователь не пригласил сам себя
+    if (referrerId !== telegramId) {
+      try {
+        // Сохраняем того, кто пригласил, в базу данных игроку
+        await playersCollection.updateOne(
+          { telegramId: telegramId },
+          { $set: { referredBy: referrerId } },
+          { upsert: true } 
+        );
+        console.log(`✅ Пользователь ${telegramId} пришел по реферальной ссылке от ${referrerId}`);
+      } catch (err) {
+        console.error('Ошибка сохранения реферала:', err);
+      }
+    }
+  }
+  // ==============================================================
+
+  // Дальше идет твой старый код (const text = ...)
   
   const text = `
 👋 <b>Привет, ${userName}!</b>
