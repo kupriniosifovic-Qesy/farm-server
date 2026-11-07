@@ -215,25 +215,25 @@ app.get('/api/adsgram-reward', async (req, res) => {
 // ==================== ПЛАТЕЖИ (TELEGRAM STARS) ====================
 const SHOP = {
   // Пакеты монет
-  'coins_10m':   { title: '10 Миллионов монет', price: 50, desc: 'Мгновенно начислит 10 000 000 монет.' }, // <--- ЦЕНА
-  'coins_100m':  { title: '100 Миллионов монет', price: 300, desc: 'Мгновенно начислит 100 000 000 монет.' }, // <--- ЦЕНА
-  'coins_1b':    { title: '1 Миллиард монет', price: 1500, desc: 'Станьте настоящим магнатом.' }, // <--- ЦЕНА
-  'coins_5b':    { title: '5 Миллиардов монет', price: 3000, desc: 'Для самых амбициозных фермеров.' }, // <--- ЦЕНА
-  'coins_10b':   { title: '10 Миллиардов монет', price: 5000, desc: 'Абсолютное богатство.' }, // <--- ЦЕНА
+  'coins_10m':   { title: '10 Миллионов монет', price: 49, desc: 'Мгновенно начислит 10 000 000 монет.' }, // <--- ЦЕНА
+  'coins_100m':  { title: '100 Миллионов монет', price: 149, desc: 'Мгновенно начислит 100 000 000 монет.' }, // <--- ЦЕНА
+  'coins_1b':    { title: '1 Миллиард монет', price: 689, desc: 'Станьте настоящим магнатом.' }, // <--- ЦЕНА
+  'coins_5b':    { title: '5 Миллиардов монет', price: 1089, desc: 'Для самых амбициозных фермеров.' }, // <--- ЦЕНА
+  'coins_10b':   { title: '10 Миллиардов монет', price: 1499, desc: 'Абсолютное богатство.' }, // <--- ЦЕНА
   
   // Микродонаты
   'starter_pack': { title: '🎁 Сундук новичка', price: 30, desc: 'Получи 5 000 000 монет.' }, // <--- ЦЕНА
   'booster_pack': { title: '⚡ Пакет ускорения', price: 50, desc: 'Получи 15 000 000 монет.' }, // <--- ЦЕНА
-  'lucky_case':   { title: '🎰 Кейс удачи', price: 40, desc: 'Случайная награда: от 1М до 50М монет.' }, // <--- ЦЕНА
-  'farmer_pack':  { title: '👨‍🌾 Набор фермера', price: 100, desc: '30 000 000 монет и VIP-статус.' }, // <--- ЦЕНА
+  'lucky_case':   { title: '🎰 Кейс удачи', price: 29, desc: 'Случайная награда: от 1М до 50М монет.' }, // <--- ЦЕНА
+  'farmer_pack':  { title: '👨‍🌾 Набор фермера', price: 129, desc: '30 000 000 монет и VIP-статус.' }, // <--- ЦЕНА
   
   // Вечные улучшения
-  'autocollector': { title: '🤖 Автосборщик', price: 150, desc: 'Собирает урожай сам каждые 10 секунд.' }, // <--- ЦЕНА
-  'speedbooster':  { title: '⚡ Вечный ускоритель', price: 400, desc: 'Растения растут в 2 раза быстрее.' }, // <--- ЦЕНА
-  'vip':           { title: '👑 VIP Статус', price: 1000, desc: '+50% ко всему доходу навсегда.' }, // <--- ЦЕНА
-  'golden_shovel': { title: '🥇 Золотая лопата', price: 500, desc: '+100% к весу урожая навсегда.' }, // <--- ЦЕНА
-  'life_elixir':   { title: '🧪 Эликсир жизни', price: 800, desc: 'Офлайн-доход работает до 24 часов.' }, // <--- ЦЕНА
-  'business_center': { title: '🏢 Бизнес-центр', price: 2000, desc: '+100% к доходу животных навсегда.' } // <--- ЦЕНА
+  'autocollector': { title: '🤖 Автосборщик', price: 199, desc: 'Собирает урожай сам каждые 10 секунд.' }, // <--- ЦЕНА
+  'speedbooster':  { title: '⚡ Вечный ускоритель', price: 329, desc: 'Растения растут в 2 раза быстрее.' }, // <--- ЦЕНА
+  'vip':           { title: '👑 VIP Статус', price: 1089, desc: '+50% ко всему доходу навсегда.' }, // <--- ЦЕНА
+  'golden_shovel': { title: '🥇 Золотая лопата', price: 389, desc: '+100% к весу урожая навсегда.' }, // <--- ЦЕНА
+  'life_elixir':   { title: '🧪 Эликсир жизни', price: 569, desc: 'Офлайн-доход работает до 24 часов.' }, // <--- ЦЕНА
+  'business_center': { title: '🏢 Бизнес-центр', price: 949, desc: '+100% к доходу животных навсегда.' } // <--- ЦЕНА
 };
 
 app.post(`/webhook/${TELEGRAM_BOT_TOKEN}`, (req, res) => {
@@ -271,9 +271,9 @@ bot.on('successful_payment', async (msg) => {
     // Тут настраиваем, сколько монет давать за каждый пакет
     if (payload === 'coins_10m') updates.coins = (player.coins || 0) + 10000000; // <--- НАГРАДА
     else if (payload === 'coins_100m') updates.coins = (player.coins || 0) + 100000000; // <--- НАГРАДА
-    else if (payload === 'coins_1b') updates.coins = (player.coins || 0) + 1000000000; // <--- НАГРАДА
-    else if (payload === 'coins_5b') updates.coins = (player.coins || 0) + 5000000000; // <--- НАГРАДА
-    else if (payload === 'coins_10b') updates.coins = (player.coins || 0) + 10000000000; // <--- НАГРАДА
+    else if (payload === 'coins_1b') updates.coins = (player.coins || 0) + 10000000000; // <--- НАГРАДА
+    else if (payload === 'coins_5b') updates.coins = (player.coins || 0) + 150000000000; // <--- НАГРАДА
+    else if (payload === 'coins_10b') updates.coins = (player.coins || 0) + 1000000000000; // <--- НАГРАДА
     
     else if (payload === 'starter_pack') updates.coins = (player.coins || 0) + 5000000; // <--- НАГРАДА
     else if (payload === 'booster_pack') updates.coins = (player.coins || 0) + 15000000; // <--- НАГРАДА
