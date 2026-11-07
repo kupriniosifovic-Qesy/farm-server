@@ -230,6 +230,86 @@ bot.on('successful_payment', async (msg) => {
     bot.sendMessage(chatId, '❌ Произошла ошибка при начислении награды. Обратитесь в поддержку.');
   }
 });
+// ==================== КРАСИВОЕ МЕНЮ БОТА ====================
+
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+  const userName = msg.from.first_name || 'друг';
+  
+  const text = `
+👋 <b>Привет, ${userName}!</b>
+
+Добро пожаловать в <b>«Ферма: Империя»</b> — увлекательную экономическую игру прямо в Telegram! 🌾
+
+Здесь ты сможешь построить свою собственную фермерскую империю, выращивать редкие культуры, разводить животных и зарабатывать настоящие Telegram Stars! ⭐
+
+Жми кнопку ниже, чтобы начать свое восхождение к богатству! 👇
+  `;
+
+  bot.sendMessage(chatId, text, {
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🌾 ИГРАТЬ', web_app: { url: 'https://crimson-susy-95.tiiny.site' } }],
+        [{ text: '📖 Как играть?', callback_data: 'help_game' }],
+        [{ text: '⭐ Что такое Stars?', callback_data: 'help_stars' }],
+        [{ text: '📢 Наш Телеграм-канал', url: 'https://t.me/QesyGames_Official' }]
+      ]
+    }
+  });
+});
+
+// Обработка нажатий на кнопки "Как играть" и "Что такое Stars"
+bot.on('callback_query', (query) => {
+  const chatId = query.message.chat.id;
+  
+  if (query.data === 'help_game') {
+    bot.answerCallbackQuery(query.id, { text: 'Загружаем инструкцию...' });
+    
+    const helpText = `
+📖 <b>ИНСТРУКЦИЯ ПО ВЫЖИВАНИЮ</b> 🌱
+
+1️⃣ <b>Посадка:</b> Зайди во вкладку «Ферма», выбери семена и нажми «Посадить». 
+2️⃣ <b>Сбор урожая:</b> Когда таймер закончится, нажми на грядку, чтобы собрать урожай и получить монеты!
+3️⃣ <b>Животные:</b> Покупай курочек и коров — они дают пассивный доход каждую секунду!
+4️⃣ <b>Улучшения:</b> Трать монеты на ускорение роста и повышение цен.
+5️⃣ <b>Колесо Фортуны:</b> Крути колесо 🎡 в правом нижнем углу игры, чтобы выиграть джекпот!
+
+🔒 <b>Уровни:</b> Чем больше ты собираешь урожая, тем выше твой уровень. Новые семена и животные открываются по мере прокачки!
+    `;
+    
+    bot.sendMessage(chatId, helpText, { 
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{ text: '🌾 Понятно, играть!', web_app: { url: 'https://crimson-susy-95.tiiny.site' } }]]
+      }
+    });
+  }
+  
+  if (query.data === 'help_stars') {
+    bot.answerCallbackQuery(query.id, { text: 'Информация о Stars' });
+    
+    const starsText = `
+⭐ <b>Telegram Stars (Звезды)</b> — это официальная валюта Telegram.
+
+Зачем они нужны в игре?
+В нашем магазине (вкладка «Донат») ты можешь купить за звездочки мощные бонусы:
+🤖 <b>Автосборщик</b> — собирает урожай за тебя каждые 10 секунд.
+⚡ <b>Вечный ускоритель</b> — растения растут в 2 раза быстрее навсегда.
+👑 <b>VIP-статус</b> — дает +50% к общему доходу.
+💰 <b>Пакеты монет</b> — для быстрого старта.
+
+Все покупки навсегда сохраняются в твоем аккаунте и не сгорают при перерождении (Престиже)!
+    `;
+    
+    bot.sendMessage(chatId, starsText, { 
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{ text: '⭐ Перейти в магазин', web_app: { url: 'https://crimson-susy-95.tiiny.site' } }]]
+      }
+    });
+  }
+});
 
 // ==================== ЗАПУСК СЕРВЕРА ====================
 const PORT = process.env.PORT || 3000;
