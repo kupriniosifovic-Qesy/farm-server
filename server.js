@@ -11,8 +11,10 @@ app.use(cors());
 // ==================== НАСТРОЙКИ ====================
 const TELEGRAM_BOT_TOKEN = '9246537010:AAFX9DnhEPsrbz9lEZtsAEnlv5C_6_N6tAM';
 const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com';
-// ТВОЯ СТРОКА ПОДКЛЮЧЕНИЯ К MONGODB
-const MONGODB_URI = 'mongodb+srv://farmuser:NgW9maSv4bVYIyIV@farmcluster.pr639l2.mongodb.net/farmGame?retryWrites=true&w=majority&authSource=admin';
+// Твоя строка подключения к MongoDB (с базой farmGame и параметром authSource)
+const MONGODB_URI = 'mongodb+srv://kupriinosifovic_db_user:NgW9ma5v4bVYi1Y@farmcluster.pr639l2.mongodb.net/farmGame?retryWrites=true&w=majority&authSource=admin';
+// Ссылка на игру (GitHub Pages)
+const GAME_URL = 'https://kupriniosifovic-qesy.github.io/farm-game/';
 
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
 
@@ -57,17 +59,11 @@ function validateInitData(initData) {
       .update(dataCheckString)
       .digest('hex');
 
-    const isValid = calculatedHash === hash;
-
-    if (!isValid) {
-      return { valid: false, error: 'Invalid hash' };
-    }
+    if (calculatedHash !== hash) return { valid: false, error: 'Invalid hash' };
 
     const authDate = parseInt(params.get('auth_date'), 10);
     const now = Math.floor(Date.now() / 1000);
-    if (now - authDate > 86400) {
-      return { valid: false, error: 'Data is too old' };
-    }
+    if (now - authDate > 86400) return { valid: false, error: 'Data is too old' };
 
     const user = JSON.parse(params.get('user'));
     return { valid: true, user };
@@ -76,15 +72,12 @@ function validateInitData(initData) {
   }
 }
 
-// ==================== API ДЛЯ ИГРЫ ====================
+// ==================== API ДЛЯ ИГРЫ (ЗАГРУЗКА/СОХРАНЕНИЕ) ====================
 app.post('/api/get-player', async (req, res) => {
   try {
     const { initData } = req.body;
     const validation = validateInitData(initData);
-
-    if (!validation.valid) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (!validation.valid) return res.status(401).json({ error: 'Unauthorized' });
 
     const user = validation.user;
     const telegramId = user.id.toString();
@@ -95,26 +88,16 @@ app.post('/api/get-player', async (req, res) => {
       const newPlayer = {
         telegramId,
         username: user.username || user.first_name || 'Фермер',
-        coins: 100,
-        level: 1,
-        xp: 0,
+        coins: 100, level: 1, xp: 0, stars: 0,
         plots: Array.from({ length: 6 }, () => null),
-        animals: {},
-        upgrades: {},
-        rarityUp: {},
+        animals: {}, upgrades: {}, rarityUp: {},
         tools: { bucket: 0, can: 0, sprinkler: 0, drone: 0, harvester: 0 },
         animalUpgrades: {},
         greenhouse: { planted: null, upgrades: { light: 0, soil: 0, fence: 0 }, readyAt: 0 },
-        hasAutoCollector: false,
-        hasSpeedBooster: false,
-        isVip: false,
-        dailyStreak: 0,
-        lastDailyClaim: 0,
-        usedPromos: [],
-        achievements: {},
-        stats: { harvests: 0, ghHarvests: 0, rainbow: 0 },
-        lastSeen: new Date(),
-        createdAt: new Date()
+        hasAutoCollector: false, hasSpeedBooster: false, isVip: false,
+        dailyStreak: 0, lastDailyClaim: 0, usedPromos: [],
+        achievements: {}, stats: { harvests: 0, ghHarvests: 0, rainbow: 0 },
+        lastSeen: new Date(), createdAt: new Date()
       };
       await playersCollection.insertOne(newPlayer);
       player = newPlayer;
@@ -125,8 +108,7 @@ app.post('/api/get-player', async (req, res) => {
       );
     }
 
-    delete player._id;
-    delete player.createdAt;
+    delete player._id; delete player.createdAt;
     res.json({ success: true, player });
   } catch (err) {
     console.error('Ошибка в /api/get-player:', err);
@@ -138,28 +120,15 @@ app.post('/api/save-player', async (req, res) => {
   try {
     const { initData, playerData } = req.body;
     const validation = validateInitData(initData);
-
-    if (!validation.valid) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (!validation.valid) return res.status(401).json({ error: 'Unauthorized' });
 
     const telegramId = validation.user.id.toString();
+    if (playerData.coins < 0 || playerData.level < 1) return res.status(400).json({ error: 'Invalid data' });
 
-    if (playerData.coins < 0 || playerData.level < 1 || (playerData.xp && playerData.xp < 0)) {
-      return res.status(400).json({ error: 'Invalid data' });
-    }
-
-    delete playerData._id;
-    delete playerData.telegramId;
-    delete playerData.createdAt;
+    delete playerData._id; delete playerData.telegramId; delete playerData.createdAt;
     playerData.lastSeen = new Date();
 
-    await playersCollection.updateOne(
-      { telegramId },
-      { $set: playerData },
-      { upsert: false }
-    );
-
+    await playersCollection.updateOne({ telegramId }, { $set: playerData });
     res.json({ success: true });
   } catch (err) {
     console.error('Ошибка в /api/save-player:', err);
@@ -189,11 +158,7 @@ app.post('/api/create-invoice', async (req, res) => {
 
   try {
     const invoiceLink = await bot.createInvoiceLink(
-      product.title,
-      product.desc,
-      productId,
-      '',
-      'XTR',
+      product.title, product.desc, productId, '', 'XTR',
       [{ label: product.title, amount: product.price }]
     );
     res.json({ invoiceLink });
@@ -210,10 +175,7 @@ bot.on('successful_payment', async (msg) => {
 
   try {
     const player = await playersCollection.findOne({ telegramId });
-    if (!player) {
-      console.error('Игрок не найден:', telegramId);
-      return bot.sendMessage(chatId, '❌ Ошибка: игрок не найден.');
-    }
+    if (!player) return bot.sendMessage(chatId, '❌ Ошибка: игрок не найден.');
 
     const updates = {};
     if (payload === 'coins_1m') updates.coins = (player.coins || 0) + 1000000;
@@ -227,11 +189,11 @@ bot.on('successful_payment', async (msg) => {
     bot.sendMessage(chatId, `✅ Оплата прошла! Вы купили: ${SHOP[payload].title}. Спасибо!`);
   } catch (err) {
     console.error('Ошибка при обработке платежа:', err);
-    bot.sendMessage(chatId, '❌ Произошла ошибка при начислении награды. Обратитесь в поддержку.');
+    bot.sendMessage(chatId, '❌ Ошибка при начислении награды.');
   }
 });
-// ==================== КРАСИВОЕ МЕНЮ БОТА ====================
 
+// ==================== КРАСИВОЕ МЕНЮ БОТА ====================
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   const userName = msg.from.first_name || 'друг';
@@ -250,7 +212,7 @@ bot.onText(/\/start/, (msg) => {
     parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
-        [{ text: '🌾 ИГРАТЬ', web_app: { url: 'https://kupriniosifovic-qesy.github.io/farm-game' } }],
+        [{ text: '🌾 ИГРАТЬ', web_app: { url: GAME_URL } }],
         [{ text: '📖 Как играть?', callback_data: 'help_game' }],
         [{ text: '⭐ Что такое Stars?', callback_data: 'help_stars' }],
         [{ text: '📢 Наш Телеграм-канал', url: 'https://t.me/QesyGames_Official' }]
@@ -259,13 +221,11 @@ bot.onText(/\/start/, (msg) => {
   });
 });
 
-// Обработка нажатий на кнопки "Как играть" и "Что такое Stars"
 bot.on('callback_query', (query) => {
   const chatId = query.message.chat.id;
   
   if (query.data === 'help_game') {
     bot.answerCallbackQuery(query.id, { text: 'Загружаем инструкцию...' });
-    
     const helpText = `
 📖 <b>ИНСТРУКЦИЯ ПО ВЫЖИВАНИЮ</b> 🌱
 
@@ -277,18 +237,14 @@ bot.on('callback_query', (query) => {
 
 🔒 <b>Уровни:</b> Чем больше ты собираешь урожая, тем выше твой уровень. Новые семена и животные открываются по мере прокачки!
     `;
-    
     bot.sendMessage(chatId, helpText, { 
       parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [[{ text: '🌾 Понятно, играть!', web_app: { url: 'https://kupriniosifovic-qesy.github.io/farm-game/' } }]]
-      }
+      reply_markup: { inline_keyboard: [[{ text: '🌾 Понятно, играть!', web_app: { url: GAME_URL } }]] }
     });
   }
   
   if (query.data === 'help_stars') {
     bot.answerCallbackQuery(query.id, { text: 'Информация о Stars' });
-    
     const starsText = `
 ⭐ <b>Telegram Stars (Звезды)</b> — это официальная валюта Telegram.
 
@@ -301,12 +257,9 @@ bot.on('callback_query', (query) => {
 
 Все покупки навсегда сохраняются в твоем аккаунте и не сгорают при перерождении (Престиже)!
     `;
-    
     bot.sendMessage(chatId, starsText, { 
       parse_mode: 'HTML',
-      reply_markup: {
-      inline_keyboard: [[{ text: '⭐ Перейти в магазин', web_app: { url: 'https://kupriniosifovic-qesy.github.io/farm-game/' } }]]
-      }
+      reply_markup: { inline_keyboard: [[{ text: '⭐ Перейти в магазин', web_app: { url: GAME_URL } }]] }
     });
   }
 });
@@ -315,7 +268,7 @@ bot.on('callback_query', (query) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Сервер успешно запущен на порту ${PORT}`);
-
+  
   bot.setWebHook(`${RENDER_EXTERNAL_URL}/webhook/${TELEGRAM_BOT_TOKEN}`)
     .then(() => console.log('Webhook успешно установлен!'))
     .catch(err => console.error('Ошибка установки webhook:', err));
