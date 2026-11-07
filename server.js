@@ -16,7 +16,15 @@ const MONGODB_URI = 'mongodb+srv://kupriinosifovic_db_user:NgW9ma5v4bVYi1Y@farmc
 // Ссылка на игру (GitHub Pages)
 const GAME_URL = 'https://kupriniosifovic-qesy.github.io/farm-game/';
 
-const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
+const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { 
+  polling: false,
+  request: { 
+    agentOptions: { 
+      keepAlive: true, 
+      family: 4 
+    } 
+  } 
+});
 
 // ==================== ПОДКЛЮЧЕНИЕ К MONGODB ====================
 const client = new MongoClient(MONGODB_URI);
