@@ -239,7 +239,7 @@ bot.on('callback_query', (query) => {
     `;
     bot.sendMessage(chatId, helpText, { 
       parse_mode: 'HTML',
-      reply_markup: { inline_keyboard: [[{ text: '🌾 Понятно, играть!', web_app: { url: GAME_URL } }]] }
+            reply_markup: { inline_keyboard: [[ { text: '✅ Понятно, играть!', web_app: { url: 'https://kupriniosifovic-qesy.github.io/farm-game/' } } ]] }
     });
   }
   
@@ -259,7 +259,7 @@ bot.on('callback_query', (query) => {
     `;
     bot.sendMessage(chatId, starsText, { 
       parse_mode: 'HTML',
-      reply_markup: { inline_keyboard: [[{ text: '⭐ Перейти в магазин', web_app: { url: GAME_URL } }]] }
+           reply_markup: { inline_keyboard: [[ { text: '⭐ Перейти в магазин', web_app: { url: 'https://kupriniosifovic-qesy.github.io/farm-game/' } } ]] }
     });
   }
 });
