@@ -277,12 +277,11 @@ bot.onText(/\/start/, (msg) => {
       ]
     }
   });
-}); // <--- Вот здесь заканчивается обработчик /start
+}); // <--- ЗДЕСЬ ЗАКРЫВАЕТСЯ /start
 
-// А теперь отдельно идут остальные команды:
-
+// --- ОТДЕЛЬНЫЙ ОБРАБОТЧИК ДЛЯ /help ---
 bot.onText(/\/help/, (msg) => {
-  const chatId = msg.chat.id; // Обязательно объявляем chatId здесь
+  const chatId = msg.chat.id;
   const helpText = `
 📖 <b>ИНСТРУКЦИЯ ПО ВЫЖИВАНИЮ</b> 🌱
 
@@ -300,29 +299,17 @@ bot.onText(/\/help/, (msg) => {
       inline_keyboard: [[ { text: '✅ Понятно, играть!', web_app: { url: GAME_URL } } ]]
     }
   });
-});
+}); // <--- ЗДЕСЬ ЗАКРЫВАЕТСЯ /help
 
+// --- ОТДЕЛЬНЫЙ ОБРАБОТЧИК ДЛЯ /channel ---
 bot.onText(/\/channel/, (msg) => {
-  const chatId = msg.chat.id; // И здесь тоже
+  const chatId = msg.chat.id;
   bot.sendMessage(chatId, '📢 Подписывайся на наш официальный канал с новостями и промокодами!', {
     reply_markup: {
       inline_keyboard: [[ { text: 'Перейти в канал', url: 'https://t.me/QesyGames_Official' } ]]
     }
   });
-});
-  bot.sendMessage(chatId, text, {
-    parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: '🌾 ИГРАТЬ', web_app: { url: GAME_URL } }],
-        [{ text: '📖 Как играть?', callback_data: 'help_game' }],
-        [{ text: '⭐ Что такое Stars?', callback_data: 'help_stars' }],
-        [{ text: '📢 Наш Телеграм-канал', url: 'https://t.me/QesyGames_Official' }]
-      ]
-    }
-  });
-});
-
+}); // <--- ЗДЕСЬ ЗАКРЫВАЕТСЯ /channel
 bot.on('callback_query', (query) => {
   const chatId = query.message.chat.id;
   
