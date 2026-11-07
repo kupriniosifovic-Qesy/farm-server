@@ -43,6 +43,16 @@ async function connectToMongo() {
   }
 }
 connectToMongo();
+// Регистрируем команды в меню бота
+bot.setMyCommands([
+  { command: 'start', description: '🎮 Запустить игру' },
+  { command: 'help', description: '📖 Инструкция по игре' },
+  { command: 'channel', description: '📢 Наш Telegram-канал' }
+]).then(() => {
+  console.log('✅ Меню команд успешно установлено!');
+}).catch((err) => {
+  console.error('❌ Ошибка установки меню команд:', err);
+});
 
 // ==================== ВАЛИДАЦИЯ TELEGRAM initData ====================
 function validateInitData(initData) {
@@ -255,7 +265,34 @@ bot.onText(/\/start/, (msg) => {
 
 Жми кнопку ниже, чтобы начать свое восхождение к богатству! 👇
   `;
+bot.onText(/\/help/, (msg) => {
+  const chatId = msg.chat.id;
+  const helpText = `
+📖 <b>ИНСТРУКЦИЯ ПО ВЫЖИВАНИЮ</b> 🌱
 
+1️⃣ <b>Посадка:</b> Зайди во вкладку «Ферма», выбери семена и нажми «Посадить».
+2️⃣ <b>Сбор урожая:</b> Когда таймер закончится, нажми на грядку, чтобы собрать урожай.
+3️⃣ <b>Животные:</b> Покупай курочек и коров — они дают пассивный доход каждую секунду!
+4️⃣ <b>Улучшения:</b> Трать монеты на ускорение роста и повышение цен.
+5️⃣ <b>Колесо Фортуны:</b> Крути колесо 🎡 в правом нижнем углу игры, чтобы выиграть джекпот!
+
+🔒 <b>Уровни:</b> Чем больше ты собираешь урожая, тем выше твой уровень. Новые семена и животные открываются по мере прокачки!
+  `;
+  bot.sendMessage(chatId, helpText, {
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [[ { text: '✅ Понятно, играть!', web_app: { url: GAME_URL } } ]]
+    }
+  });
+});
+  bot.onText(/\/channel/, (msg) => {
+  const chatId = msg.chat.id;
+  bot.sendMessage(chatId, '📢 Подписывайся на наш официальный канал с новостями и промокодами!', {
+    reply_markup: {
+      inline_keyboard: [[ { text: 'Перейти в канал', url: 'https://t.me/QesyGames_Official' } ]]
+    }
+  });
+});
   bot.sendMessage(chatId, text, {
     parse_mode: 'HTML',
     reply_markup: {
