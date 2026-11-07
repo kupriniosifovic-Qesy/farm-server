@@ -265,8 +265,24 @@ bot.onText(/\/start/, (msg) => {
 
 Жми кнопку ниже, чтобы начать свое восхождение к богатству! 👇
   `;
+
+  bot.sendMessage(chatId, text, {
+    parse_mode: 'HTML',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '🌾 ИГРАТЬ', web_app: { url: GAME_URL } }],
+        [{ text: '📖 Как играть?', callback_data: 'help_game' }],
+        [{ text: '⭐ Что такое Stars?', callback_data: 'help_stars' }],
+        [{ text: '📢 Наш Телеграм-канал', url: 'https://t.me/QesyGames_Official' }]
+      ]
+    }
+  });
+}); // <--- Вот здесь заканчивается обработчик /start
+
+// А теперь отдельно идут остальные команды:
+
 bot.onText(/\/help/, (msg) => {
-  const chatId = msg.chat.id;
+  const chatId = msg.chat.id; // Обязательно объявляем chatId здесь
   const helpText = `
 📖 <b>ИНСТРУКЦИЯ ПО ВЫЖИВАНИЮ</b> 🌱
 
@@ -285,8 +301,9 @@ bot.onText(/\/help/, (msg) => {
     }
   });
 });
-  bot.onText(/\/channel/, (msg) => {
-  const chatId = msg.chat.id;
+
+bot.onText(/\/channel/, (msg) => {
+  const chatId = msg.chat.id; // И здесь тоже
   bot.sendMessage(chatId, '📢 Подписывайся на наш официальный канал с новостями и промокодами!', {
     reply_markup: {
       inline_keyboard: [[ { text: 'Перейти в канал', url: 'https://t.me/QesyGames_Official' } ]]
