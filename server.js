@@ -12,7 +12,7 @@ app.use(cors());
 const TELEGRAM_BOT_TOKEN = '9246537010:AAFX9DnhEPsrbz9lEZtsAEnlv5C_6_N6tAM';
 const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com';
 // ТВОЯ СТРОКА ПОДКЛЮЧЕНИЯ К MONGODB
-const MONGODB_URI = 'mongodb+srv://kupriinosifovic_db_user:qwerty123@farmcluster.pr639l2.mongodb.net/farmGame?retryWrites=true&w=majority&authSource=admin';
+const MONGODB_URI = 'mongodb+srv://jJ9zrEm81HEjUWlG@farmcluster.pr639l2.mongodb.net/farmGame?retryWrites=true&w=majority&authSource=admin';
 
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
 
