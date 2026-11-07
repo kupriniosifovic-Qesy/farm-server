@@ -143,7 +143,47 @@ app.post('/api/save-player', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// ==================== ПОДТВЕРЖДЕНИЕ РЕКЛАМЫ ADSGRAM ====================
+app.get('/api/adsgram-reward', async (req, res) => {
+  const { userid } = req.query;
+  
+  if (!userid) {
+    return res.status(400).send('Missing userid');
+  }
 
+  try {
+    const telegramId = userid.toString();
+    const player = await playersCollection.findOne({ telegramId });
+
+    if (!player) {
+      return res.status(404).send('Player not found');
+    }
+
+    // Защита от накруток: проверяем, не получал ли игрок награду за последние 10 минут
+    const now = Date.now();
+    if (player.lastAdTime && (now - player.lastAdTime < 600000)) {
+      return res.status(429).send('Too many requests');
+    }
+
+    // Начисляем награду (сделаем фиксированную на сервере, например 25000 монет, 
+    // или можешь передавать точную сумму через URL от клиента)
+    const reward = 25000; 
+    
+    await playersCollection.updateOne(
+      { telegramId },
+      { 
+        $inc: { coins: reward },
+        $set: { lastAdTime: now }
+      }
+    );
+
+    console.log(`✅ Награда за рекламу начислена пользователю ${telegramId}: +${reward} монет`);
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('Ошибка в /api/adsgram-reward:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
 // ==================== ПЛАТЕЖИ (TELEGRAM STARS) ====================
 const SHOP = {
   'coins_1m':   { title: '1 Миллион монет', price: 50, desc: 'Мгновенно начислит 1 000 000 монет.' },
