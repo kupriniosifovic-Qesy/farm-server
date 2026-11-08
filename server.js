@@ -11,19 +11,12 @@ app.use(cors());
 // ==================== НАСТРОЙКИ ====================
 const TELEGRAM_BOT_TOKEN = '9246537010:AAEFGwCVwXbgUwJWFI0Su4_T2Bq2kHvsh20';
 const RENDER_EXTERNAL_URL = 'https://farm-server-8fyo.onrender.com';
-// Твоя строка подключения к MongoDB (с базой farmGame и параметром authSource)
 const MONGODB_URI = 'mongodb+srv://farmesGames:QZwWBTW9Zw58dMl5@farmcluster.pr639l2.mongodb.net/farmGame?retryWrites=true&w=majority&authSource=admin';
-// Ссылка на игру (GitHub Pages)
 const GAME_URL = 'https://kupriniosifovic-qesy.github.io/farm-game/';
 
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { 
   polling: false,
-  request: { 
-    agentOptions: { 
-      keepAlive: true, 
-      family: 4 
-    } 
-  } 
+  request: { agentOptions: { keepAlive: true, family: 4 } } 
 });
 
 // ==================== ПОДКЛЮЧЕНИЕ К MONGODB ====================
@@ -43,16 +36,14 @@ async function connectToMongo() {
   }
 }
 connectToMongo();
+
 // Регистрируем команды в меню бота
 bot.setMyCommands([
   { command: 'start', description: '🎮 Запустить игру' },
   { command: 'help', description: '📖 Инструкция по игре' },
   { command: 'channel', description: '📢 Наш Telegram-канал' }
-]).then(() => {
-  console.log('✅ Меню команд успешно установлено!');
-}).catch((err) => {
-  console.error('❌ Ошибка установки меню команд:', err);
-});
+]).then(() => console.log('✅ Меню команд установлено!'))
+  .catch((err) => console.error('❌ Ошибка установки меню:', err));
 
 // ==================== ВАЛИДАЦИЯ TELEGRAM initData ====================
 function validateInitData(initData) {
@@ -67,15 +58,8 @@ function validateInitData(initData) {
       .map(([key, value]) => `${key}=${value}`)
       .join('\n');
 
-    const secretKey = crypto
-      .createHmac('sha256', 'WebAppData')
-      .update(TELEGRAM_BOT_TOKEN)
-      .digest();
-
-    const calculatedHash = crypto
-      .createHmac('sha256', secretKey)
-      .update(dataCheckString)
-      .digest('hex');
+    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(TELEGRAM_BOT_TOKEN).digest();
+    const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
     if (calculatedHash !== hash) return { valid: false, error: 'Invalid hash' };
 
@@ -90,7 +74,7 @@ function validateInitData(initData) {
   }
 }
 
-// ==================== API ДЛЯ ИГРЫ (ЗАГРУЗКА/СОХРАНЕНИЕ) ====================
+// ==================== API: ЗАГРУЗКА ИГРОКА ====================
 app.post('/api/get-player', async (req, res) => {
   try {
     const { initData } = req.body;
@@ -103,7 +87,7 @@ app.post('/api/get-player', async (req, res) => {
     let player = await playersCollection.findOne({ telegramId });
 
     if (!player) {
-            const newPlayer = {
+      const newPlayer = {
         telegramId,
         username: user.username || user.first_name || 'Фермер',
         coins: 100, level: 1, xp: 0, stars: 0,
@@ -114,35 +98,26 @@ app.post('/api/get-player', async (req, res) => {
         greenhouse: { planted: null, upgrades: { light: 0, soil: 0, fence: 0 }, readyAt: 0 },
         hasAutoCollector: false, hasSpeedBooster: false, isVip: false,
         dailyStreak: 0, lastDailyClaim: 0, usedPromos: [],
-        achievements: {}, stats: { harvests: 0, ghHarvests: 0, rainbow: 0, coinsSpent: 0, wheelSpins: 0 },
-        lastSeen: new Date(), createdAt: new Date(),
-        // ДОБАВЛЯЕМ НЕДОСТАЮЩИЕ ПОЛЯ:
-        lastTick: Date.now(),
-        lastAdTime: 0,
-        lastWheelSpin: 0,
-        feedEndTime: 0,
-        activeEvent: null,
+        achievements: {}, 
+        stats: { harvests: 0, ghHarvests: 0, rainbow: 0, coinsSpent: 0, wheelSpins: 0 },
         quests: { daily: null, weekly: null, dailyTime: 0, weeklyTime: 0, dailyClaimed: false, weeklyClaimed: false },
         referralCount: 0, referredBy: null, referralRewarded: false,
-        selectedCrop: 'wheat', sound: true, tempVipEndTime: 0,
+        lastSeen: new Date(), createdAt: new Date(),
+        lastTick: Date.now(), lastAdTime: 0, lastWheelSpin: 0, feedEndTime: 0,
+        activeEvent: null, selectedCrop: 'wheat', sound: true, tempVipEndTime: 0,
         hasGoldenShovel: false, hasLifeElixir: false, hasBusinessCenter: false
       };
       await playersCollection.insertOne(newPlayer);
       player = newPlayer;
-       } else {
+    } else {
       // ЛОГИКА РЕФЕРАЛЬНОЙ НАГРАДЫ
       if (player.level >= 3 && player.referredBy && !player.referralRewarded) {
         const referrer = await playersCollection.findOne({ telegramId: player.referredBy });
         if (referrer) {
-          // Начисляем монеты другу
           await playersCollection.updateOne({ telegramId: player.referredBy }, { $inc: { coins: 500000, referralCount: 1 } });
-          // Начисляем монеты приглашенному и ставим флаг
           await playersCollection.updateOne({ telegramId }, { $inc: { coins: 500000 }, $set: { referralRewarded: true } });
-          
-          // Уведомляем пригласившего в бота
           bot.sendMessage(player.referredBy, '🎉 Ваш друг достиг 3 уровня! Вы получили +500 000 монет!').catch(()=>{});
           
-          // Обновляем текущую сессию, чтобы игрок сразу увидел монеты
           player.coins = (player.coins || 0) + 500000;
           player.referralRewarded = true;
         }
@@ -154,7 +129,8 @@ app.post('/api/get-player', async (req, res) => {
       );
     }
 
-    delete player._id; delete player.createdAt;
+    delete player._id; 
+    delete player.createdAt;
     res.json({ success: true, player });
   } catch (err) {
     console.error('Ошибка в /api/get-player:', err);
@@ -162,6 +138,7 @@ app.post('/api/get-player', async (req, res) => {
   }
 });
 
+// ==================== API: СОХРАНЕНИЕ ИГРОКА ====================
 app.post('/api/save-player', async (req, res) => {
   try {
     const { initData, playerData } = req.body;
@@ -170,15 +147,28 @@ app.post('/api/save-player', async (req, res) => {
 
     const telegramId = validation.user.id.toString();
     
-    // --- ЗАЩИТА БАЗЫ ДАННЫХ ОТ ПОВРЕЖДЕНИЯ ---
-    if (typeof playerData.coins !== 'number' || playerData.coins < 0) playerData.coins = 100;
+    // ==========================================
+    // 🛡️ ЗАЩИТА БАЗЫ ДАННЫХ ОТ ПОВРЕЖДЕНИЯ
+    // ==========================================
+    if (typeof playerData.coins !== 'number' || isNaN(playerData.coins) || playerData.coins < 0) playerData.coins = 100;
     if (typeof playerData.level !== 'number' || playerData.level < 1) playerData.level = 1;
+    if (typeof playerData.xp !== 'number' || playerData.xp < 0) playerData.xp = 0;
+    
     if (!Array.isArray(playerData.usedPromos)) playerData.usedPromos = [];
-    if (!Array.isArray(playerData.plots)) playerData.plots = Array.from({ length: 6 }, () => null);
-    if (typeof playerData.stats !== 'object' || playerData.stats === null) playerData.stats = { harvests: 0, ghHarvests: 0, rainbow: 0 };
-    // ------------------------------------------
+    if (!Array.isArray(playerData.plots) || playerData.plots.length === 0) {
+      playerData.plots = Array.from({ length: 6 }, () => null);
+    }
+    if (typeof playerData.stats !== 'object' || playerData.stats === null) {
+      playerData.stats = { harvests: 0, ghHarvests: 0, rainbow: 0, coinsSpent: 0, wheelSpins: 0 };
+    }
+    if (typeof playerData.quests !== 'object' || playerData.quests === null) {
+      playerData.quests = { daily: null, weekly: null, dailyTime: 0, weeklyTime: 0, dailyClaimed: false, weeklyClaimed: false };
+    }
+    // ==========================================
 
-    delete playerData._id; delete playerData.telegramId; delete playerData.createdAt;
+    delete playerData._id; 
+    delete playerData.telegramId; 
+    delete playerData.createdAt;
     playerData.lastSeen = new Date();
 
     await playersCollection.updateOne({ telegramId }, { $set: playerData });
@@ -188,69 +178,54 @@ app.post('/api/save-player', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-// ==================== ПОДТВЕРЖДЕНИЕ РЕКЛАМЫ ADSGRAM ====================
+
+// ==================== API: РЕКЛАМА ADSGRAM ====================
 app.get('/api/adsgram-reward', async (req, res) => {
   const { userid } = req.query;
-  
-  if (!userid) {
-    return res.status(400).send('Missing userid');
-  }
+  if (!userid) return res.status(400).send('Missing userid');
 
   try {
     const telegramId = userid.toString();
     const player = await playersCollection.findOne({ telegramId });
+    if (!player) return res.status(404).send('Player not found');
 
-    if (!player) {
-      return res.status(404).send('Player not found');
-    }
-
-    // Защита от накруток: проверяем, не получал ли игрок награду за последние 10 минут
     const now = Date.now();
+    // Защита от накруток (кулдаун 10 минут)
     if (player.lastAdTime && (now - player.lastAdTime < 600000)) {
       return res.status(429).send('Too many requests');
     }
 
-    // Начисляем награду (сделаем фиксированную на сервере, например 25000 монет, 
-    // или можешь передавать точную сумму через URL от клиента)
     const reward = 25000; 
-    
     await playersCollection.updateOne(
       { telegramId },
-      { 
-        $inc: { coins: reward },
-        $set: { lastAdTime: now }
-      }
+      { $inc: { coins: reward }, $set: { lastAdTime: now } }
     );
 
-    console.log(`✅ Награда за рекламу начислена пользователю ${telegramId}: +${reward} монет`);
+    console.log(`✅ Награда за рекламу начислена ${telegramId}: +${reward} монет`);
     res.status(200).send('OK');
   } catch (err) {
     console.error('Ошибка в /api/adsgram-reward:', err);
     res.status(500).send('Internal Server Error');
   }
 });
+
 // ==================== ПЛАТЕЖИ (TELEGRAM STARS) ====================
 const SHOP = {
-  // Пакеты монет
-  'coins_10m':   { title: '10 Миллионов монет', price: 49, desc: 'Мгновенно начислит 10 000 000 монет.' }, // <--- ЦЕНА
-  'coins_100m':  { title: '100 Миллионов монет', price: 149, desc: 'Мгновенно начислит 100 000 000 монет.' }, // <--- ЦЕНА
-  'coins_1b':    { title: '1 Миллиард монет', price: 189, desc: 'Станьте настоящим магнатом.' }, // <--- ЦЕНА
-  'coins_5b':    { title: '5 Миллиардов монет', price: 289, desc: 'Для самых амбициозных фермеров.' }, // <--- ЦЕНА
-  'coins_10b':   { title: '10 Миллиардов монет', price: 499, desc: 'Абсолютное богатство.' }, // <--- ЦЕНА
-  
-  // Микродонаты
-  'starter_pack': { title: '🎁 Сундук новичка', price: 29, desc: 'Получи 5 000 000 монет.' }, // <--- ЦЕНА
-  'booster_pack': { title: '⚡ Пакет ускорения', price: 49, desc: 'Получи 15 000 000 монет.' }, // <--- ЦЕНА
-  'lucky_case':   { title: '🎰 Кейс удачи', price: 29, desc: 'Случайная награда: от 1М до 50М монет.' }, // <--- ЦЕНА
-  'farmer_pack':  { title: '👨‍🌾 Набор фермера', price: 179, desc: '30 000 000 монет и VIP-статус.' }, // <--- ЦЕНА
-  
-  // Вечные улучшения
-  'autocollector': { title: '🤖 Автосборщик', price: 249, desc: 'Собирает урожай сам каждые 10 секунд.' }, // <--- ЦЕНА
-  'speedbooster':  { title: '⚡ Вечный ускоритель', price: 299, desc: 'Растения растут в 2 раза быстрее.' }, // <--- ЦЕНА
-  'vip':           { title: '👑 VIP Статус', price: 1089, desc: '+50% ко всему доходу навсегда.' }, // <--- ЦЕНА
-  'golden_shovel': { title: '🥇 Золотая лопата', price: 389, desc: '+100% к весу урожая навсегда.' }, // <--- ЦЕНА
-  'life_elixir':   { title: '🧪 Эликсир жизни', price: 569, desc: 'Офлайн-доход работает до 24 часов.' }, // <--- ЦЕНА
-  'business_center': { title: '🏢 Бизнес-центр', price: 949, desc: '+100% к доходу животных навсегда.' } // <--- ЦЕНА
+  'coins_10m':   { title: '10 Миллионов монет', price: 49, desc: 'Мгновенно начислит 10 000 000 монет.' },
+  'coins_100m':  { title: '100 Миллионов монет', price: 149, desc: 'Мгновенно начислит 100 000 000 монет.' },
+  'coins_1b':    { title: '1 Миллиард монет', price: 189, desc: 'Станьте настоящим магнатом.' },
+  'coins_5b':    { title: '5 Миллиардов монет', price: 289, desc: 'Для самых амбициозных фермеров.' },
+  'coins_10b':   { title: '10 Миллиардов монет', price: 499, desc: 'Абсолютное богатство.' },
+  'starter_pack': { title: '🎁 Сундук новичка', price: 29, desc: 'Получи 5 000 000 монет.' },
+  'booster_pack': { title: '⚡ Пакет ускорения', price: 49, desc: 'Получи 15 000 000 монет.' },
+  'lucky_case':   { title: '🎰 Кейс удачи', price: 29, desc: 'Случайная награда: от 1М до 50М монет.' },
+  'farmer_pack':  { title: '👨‍🌾 Набор фермера', price: 179, desc: '30 000 000 монет и VIP-статус.' },
+  'autocollector': { title: '🤖 Автосборщик', price: 249, desc: 'Собирает урожай сам каждые 10 секунд.' },
+  'speedbooster':  { title: '⚡ Вечный ускоритель', price: 299, desc: 'Растения растут в 2 раза быстрее.' },
+  'vip':           { title: '👑 VIP Статус', price: 1089, desc: '+50% ко всему доходу навсегда.' },
+  'golden_shovel': { title: '🥇 Золотая лопата', price: 389, desc: '+100% к весу урожая навсегда.' },
+  'life_elixir':   { title: '🧪 Эликсир жизни', price: 569, desc: 'Офлайн-доход работает до 24 часов.' },
+  'business_center': { title: '🏢 Бизнес-центр', price: 949, desc: '+100% к доходу животных навсегда.' }
 };
 
 app.post(`/webhook/${TELEGRAM_BOT_TOKEN}`, (req, res) => {
@@ -284,21 +259,20 @@ bot.on('successful_payment', async (msg) => {
     const player = await playersCollection.findOne({ telegramId });
     if (!player) return bot.sendMessage(chatId, '❌ Ошибка: игрок не найден.');
 
-      const updates = {};
-    // Тут настраиваем, сколько монет давать за каждый пакет
-    if (payload === 'coins_10m') updates.coins = (player.coins || 0) + 10000000; // <--- НАГРАДА
-    else if (payload === 'coins_100m') updates.coins = (player.coins || 0) + 100000000; // <--- НАГРАДА
-    else if (payload === 'coins_1b') updates.coins = (player.coins || 0) + 10000000000; // <--- НАГРАДА
-    else if (payload === 'coins_5b') updates.coins = (player.coins || 0) + 150000000000; // <--- НАГРАДА
-    else if (payload === 'coins_10b') updates.coins = (player.coins || 0) + 1000000000000; // <--- НАГРАДА
+    const updates = {};
+    if (payload === 'coins_10m') updates.coins = (player.coins || 0) + 10000000;
+    else if (payload === 'coins_100m') updates.coins = (player.coins || 0) + 100000000;
+    else if (payload === 'coins_1b') updates.coins = (player.coins || 0) + 10000000000;
+    else if (payload === 'coins_5b') updates.coins = (player.coins || 0) + 150000000000;
+    else if (payload === 'coins_10b') updates.coins = (player.coins || 0) + 1000000000000;
     
-    else if (payload === 'starter_pack') updates.coins = (player.coins || 0) + 5000000; // <--- НАГРАДА
-    else if (payload === 'booster_pack') updates.coins = (player.coins || 0) + 15000000; // <--- НАГРАДА
+    else if (payload === 'starter_pack') updates.coins = (player.coins || 0) + 5000000;
+    else if (payload === 'booster_pack') updates.coins = (player.coins || 0) + 15000000;
     else if (payload === 'farmer_pack') { 
-    updates.coins = (player.coins || 0) + 30000000; 
-    updates.tempVipEndTime = Date.now() + (12 * 60 * 60 * 1000); // 12 часов
-} // <--- НАГРАДА
-    else if (payload === 'lucky_case') updates.coins = (player.coins || 0) + (Math.floor(Math.random() * 49) + 1) * 1000000; // <--- НАГРАДА (Рандом от 1М до 50М)
+      updates.coins = (player.coins || 0) + 30000000; 
+      updates.tempVipEndTime = Date.now() + (12 * 60 * 60 * 1000); 
+    }
+    else if (payload === 'lucky_case') updates.coins = (player.coins || 0) + (Math.floor(Math.random() * 49) + 1) * 1000000;
     
     else if (payload === 'autocollector') updates.hasAutoCollector = true;
     else if (payload === 'speedbooster') updates.hasSpeedBooster = true;
@@ -315,27 +289,23 @@ bot.on('successful_payment', async (msg) => {
   }
 });
 
-// ==================== КРАСИВОЕ МЕНЮ БОТА ====================
+// ==================== МЕНЮ БОТА ====================
 bot.onText(/\/start(.*)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const userName = msg.from.first_name || 'друг';
   
-  // ==================== РЕФЕРАЛЬНАЯ СИСТЕМА ====================
-  const refParam = match[1].trim(); // Получаем текст после /start (например, " ref_12345")
+  const refParam = match[1].trim(); 
   const telegramId = msg.from.id.toString();
 
-  // Если в ссылке был параметр ref_
+  // РЕФЕРАЛЬНАЯ СИСТЕМА
   if (refParam.startsWith('ref_')) {
     const referrerId = refParam.replace('ref_', '');
-    
-    // Проверяем, чтобы пользователь не пригласил сам себя
     if (referrerId !== telegramId) {
-            try {
-        // Сохраняем того, кто пригласил, в базу данных игроку
-                await playersCollection.updateOne(
+      try {
+        await playersCollection.updateOne(
           { telegramId: telegramId },
           { 
-            $setOnInsert: { // Вместо $set используем $setOnInsert для referredBy
+            $setOnInsert: { 
               referredBy: referrerId,
               username: msg.from.username || msg.from.first_name || 'Фермер',
               coins: 100, level: 1, xp: 0, stars: 0,
@@ -346,23 +316,23 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
               greenhouse: { planted: null, upgrades: { light: 0, soil: 0, fence: 0 }, readyAt: 0 },
               hasAutoCollector: false, hasSpeedBooster: false, isVip: false,
               dailyStreak: 0, lastDailyClaim: 0, usedPromos: [],
-              achievements: {}, stats: { harvests: 0, ghHarvests: 0, rainbow: 0 },
+              achievements: {}, stats: { harvests: 0, ghHarvests: 0, rainbow: 0, coinsSpent: 0, wheelSpins: 0 },
+              quests: { daily: null, weekly: null, dailyTime: 0, weeklyTime: 0, dailyClaimed: false, weeklyClaimed: false },
               referralCount: 0, referralRewarded: false,
-              lastSeen: new Date(), createdAt: new Date()
+              lastSeen: new Date(), createdAt: new Date(),
+              lastTick: Date.now(), lastAdTime: 0, lastWheelSpin: 0, feedEndTime: 0,
+              activeEvent: null, selectedCrop: 'wheat', sound: true, tempVipEndTime: 0,
+              hasGoldenShovel: false, hasLifeElixir: false, hasBusinessCenter: false
             }
           },
           { upsert: true } 
         );
-                console.log(`✅ Пользователь ${telegramId} пришел по реферальной ссылке от ${referrerId}`);
+        console.log(`✅ Пользователь ${telegramId} пришел по реф. ссылке от ${referrerId}`);
       } catch (err) {
         console.error('Ошибка сохранения реферала:', err);
       }
     }
   }
-  // ==============================================================
-  // ==============================================================
-
-  // Дальше идет твой старый код (const text = ...)
   
   const text = `
 👋 <b>Привет, ${userName}!</b>
@@ -385,9 +355,8 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
       ]
     }
   });
-}); // <--- ЗДЕСЬ ЗАКРЫВАЕТСЯ /start
+});
 
-// --- ОТДЕЛЬНЫЙ ОБРАБОТЧИК ДЛЯ /help ---
 bot.onText(/\/help/, (msg) => {
   const chatId = msg.chat.id;
   const helpText = `
@@ -403,60 +372,35 @@ bot.onText(/\/help/, (msg) => {
   `;
   bot.sendMessage(chatId, helpText, {
     parse_mode: 'HTML',
-    reply_markup: {
-      inline_keyboard: [[ { text: '✅ Понятно, играть!', web_app: { url: GAME_URL } } ]]
-    }
+    reply_markup: { inline_keyboard: [[ { text: '✅ Понятно, играть!', web_app: { url: GAME_URL } } ]] }
   });
-}); // <--- ЗДЕСЬ ЗАКРЫВАЕТСЯ /help
+});
 
-// --- ОТДЕЛЬНЫЙ ОБРАБОТЧИК ДЛЯ /channel ---
 bot.onText(/\/channel/, (msg) => {
   const chatId = msg.chat.id;
   bot.sendMessage(chatId, '📢 Подписывайся на наш официальный канал с новостями и промокодами!', {
-    reply_markup: {
-      inline_keyboard: [[ { text: 'Перейти в канал', url: 'https://t.me/QesyGames_Official' } ]]
-    }
+    reply_markup: { inline_keyboard: [[ { text: 'Перейти в канал', url: 'https://t.me/QesyGames_Official' } ]] }
   });
-}); // <--- ЗДЕСЬ ЗАКРЫВАЕТСЯ /channel
+});
+
 bot.on('callback_query', (query) => {
   const chatId = query.message.chat.id;
   
   if (query.data === 'help_game') {
     bot.answerCallbackQuery(query.id, { text: 'Загружаем инструкцию...' });
-    const helpText = `
-📖 <b>ИНСТРУКЦИЯ ПО ВЫЖИВАНИЮ</b> 🌱
-
-1️⃣ <b>Посадка:</b> Зайди во вкладку «Ферма», выбери семена и нажми «Посадить». 
-2️⃣ <b>Сбор урожая:</b> Когда таймер закончится, нажми на грядку, чтобы собрать урожай и получить монеты!
-3️⃣ <b>Животные:</b> Покупай курочек и коров — они дают пассивный доход каждую секунду!
-4️⃣ <b>Улучшения:</b> Трать монеты на ускорение роста и повышение цен.
-5️⃣ <b>Колесо Фортуны:</b> Крути колесо 🎡 в правом нижнем углу игры, чтобы выиграть джекпот!
-
-🔒 <b>Уровни:</b> Чем больше ты собираешь урожая, тем выше твой уровень. Новые семена и животные открываются по мере прокачки!
-    `;
+    const helpText = `📖 <b>ИНСТРУКЦИЯ ПО ВЫЖИВАНИЮ</b> 🌱\n\n1️⃣ <b>Посадка:</b> Зайди во вкладку «Ферма», выбери семена и нажми «Посадить». \n2️⃣ <b>Сбор урожая:</b> Когда таймер закончится, нажми на грядку, чтобы собрать урожай и получить монеты!\n3️⃣ <b>Животные:</b> Покупай курочек и коров — они дают пассивный доход каждую секунду!\n4️⃣ <b>Улучшения:</b> Трать монеты на ускорение роста и повышение цен.\n5️⃣ <b>Колесо Фортуны:</b> Крути колесо 🎡 в правом нижнем углу игры, чтобы выиграть джекпот!\n\n🔒 <b>Уровни:</b> Чем больше ты собираешь урожая, тем выше твой уровень. Новые семена и животные открываются по мере прокачки!`;
     bot.sendMessage(chatId, helpText, { 
       parse_mode: 'HTML',
-            reply_markup: { inline_keyboard: [[ { text: '✅ Понятно, играть!', web_app: { url: 'https://kupriniosifovic-qesy.github.io/farm-game/' } } ]] }
+      reply_markup: { inline_keyboard: [[ { text: '✅ Понятно, играть!', web_app: { url: GAME_URL } } ]] }
     });
   }
   
   if (query.data === 'help_stars') {
     bot.answerCallbackQuery(query.id, { text: 'Информация о Stars' });
-    const starsText = `
-⭐ <b>Telegram Stars (Звезды)</b> — это официальная валюта Telegram.
-
-Зачем они нужны в игре?
-В нашем магазине (вкладка «Донат») ты можешь купить за звездочки мощные бонусы:
-🤖 <b>Автосборщик</b> — собирает урожай за тебя каждые 10 секунд.
-⚡ <b>Вечный ускоритель</b> — растения растут в 2 раза быстрее навсегда.
-👑 <b>VIP-статус</b> — дает +50% к общему доходу.
-💰 <b>Пакеты монет</b> — для быстрого старта.
-
-Все покупки навсегда сохраняются в твоем аккаунте и не сгорают при перерождении (Престиже)!
-    `;
+    const starsText = `⭐ <b>Telegram Stars (Звезды)</b> — это официальная валюта Telegram.\n\nЗачем они нужны в игре?\nВ нашем магазине (вкладка «Донат») ты можешь купить за звездочки мощные бонусы:\n🤖 <b>Автосборщик</b> — собирает урожай за тебя каждые 10 секунд.\n⚡ <b>Вечный ускоритель</b> — растения растут в 2 раза быстрее навсегда.\n👑 <b>VIP-статус</b> — дает +50% к общему доходу.\n💰 <b>Пакеты монет</b> — для быстрого старта.\n\nВсе покупки навсегда сохраняются в твоем аккаунте и не сгорают при перерождении (Престиже)!`;
     bot.sendMessage(chatId, starsText, { 
       parse_mode: 'HTML',
-           reply_markup: { inline_keyboard: [[ { text: '⭐ Перейти в магазин', web_app: { url: 'https://kupriniosifovic-qesy.github.io/farm-game/' } } ]] }
+      reply_markup: { inline_keyboard: [[ { text: '⭐ Перейти в магазин', web_app: { url: GAME_URL } } ]] }
     });
   }
 });
