@@ -190,7 +190,6 @@ app.get('/api/adsgram-reward', async (req, res) => {
     if (!player) return res.status(404).send('Player not found');
 
     const now = Date.now();
-    // Защита от накруток (кулдаун 10 минут)
     if (player.lastAdTime && (now - player.lastAdTime < 600000)) {
       return res.status(429).send('Too many requests');
     }
