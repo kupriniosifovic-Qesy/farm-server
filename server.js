@@ -215,7 +215,6 @@ app.get('/api/adsgram-reward', async (req, res) => {
 // ==================== ПЛАТЕЖИ (TELEGRAM STARS) ====================
 const SHOP = {
   // Пакеты монет
-  'coins_1m':    { title: '1 Миллион монет', price: 29, desc: 'Мгновенно начислит 1 000 000 монет.' }, // <--- ЦЕНА
   'coins_10m':   { title: '10 Миллионов монет', price: 49, desc: 'Мгновенно начислит 10 000 000 монет.' }, // <--- ЦЕНА
   'coins_100m':  { title: '100 Миллионов монет', price: 149, desc: 'Мгновенно начислит 100 000 000 монет.' }, // <--- ЦЕНА
   'coins_1b':    { title: '1 Миллиард монет', price: 189, desc: 'Станьте настоящим магнатом.' }, // <--- ЦЕНА
@@ -270,8 +269,7 @@ bot.on('successful_payment', async (msg) => {
 
       const updates = {};
     // Тут настраиваем, сколько монет давать за каждый пакет
-    if (payload === 'coins_1m') updates.coins = (player.coins || 0) + 1000000; // <--- НАГРАДА
-    else if (payload === 'coins_10m') updates.coins = (player.coins || 0) + 10000000; // <--- НАГРАДА
+    if (payload === 'coins_10m') updates.coins = (player.coins || 0) + 10000000; // <--- НАГРАДА
     else if (payload === 'coins_100m') updates.coins = (player.coins || 0) + 100000000; // <--- НАГРАДА
     else if (payload === 'coins_1b') updates.coins = (player.coins || 0) + 10000000000; // <--- НАГРАДА
     else if (payload === 'coins_5b') updates.coins = (player.coins || 0) + 150000000000; // <--- НАГРАДА
