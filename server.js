@@ -279,7 +279,10 @@ bot.on('successful_payment', async (msg) => {
     
     else if (payload === 'starter_pack') updates.coins = (player.coins || 0) + 5000000; // <--- НАГРАДА
     else if (payload === 'booster_pack') updates.coins = (player.coins || 0) + 15000000; // <--- НАГРАДА
-    else if (payload === 'farmer_pack') { updates.coins = (player.coins || 0) + 30000000; updates.isVip = true; } // <--- НАГРАДА
+    else if (payload === 'farmer_pack') { 
+    updates.coins = (player.coins || 0) + 30000000; 
+    updates.tempVipEndTime = Date.now() + (12 * 60 * 60 * 1000); // 12 часов
+} // <--- НАГРАДА
     else if (payload === 'lucky_case') updates.coins = (player.coins || 0) + (Math.floor(Math.random() * 49) + 1) * 1000000; // <--- НАГРАДА (Рандом от 1М до 50М)
     
     else if (payload === 'autocollector') updates.hasAutoCollector = true;
@@ -314,11 +317,11 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
     if (referrerId !== telegramId) {
             try {
         // Сохраняем того, кто пригласил, в базу данных игроку
-        await playersCollection.updateOne(
+                await playersCollection.updateOne(
           { telegramId: telegramId },
           { 
-            $set: { referredBy: referrerId },
-            $setOnInsert: { 
+            $setOnInsert: { // Вместо $set используем $setOnInsert для referredBy
+              referredBy: referrerId,
               username: msg.from.username || msg.from.first_name || 'Фермер',
               coins: 100, level: 1, xp: 0, stars: 0,
               plots: Array.from({ length: 6 }, () => null),
@@ -335,12 +338,6 @@ bot.onText(/\/start(.*)/, async (msg, match) => {
           },
           { upsert: true } 
         );
-        console.log(`✅ Пользователь ${telegramId} пришел по реферальной ссылке от ${referrerId}`);
-      } catch (err) {
-        console.error('Ошибка сохранения реферала:', err);
-      }
-    }
-  }
   // ==============================================================
 
   // Дальше идет твой старый код (const text = ...)
