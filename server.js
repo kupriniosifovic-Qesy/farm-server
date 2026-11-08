@@ -103,7 +103,7 @@ app.post('/api/get-player', async (req, res) => {
     let player = await playersCollection.findOne({ telegramId });
 
     if (!player) {
-      const newPlayer = {
+            const newPlayer = {
         telegramId,
         username: user.username || user.first_name || 'Фермер',
         coins: 100, level: 1, xp: 0, stars: 0,
@@ -114,8 +114,18 @@ app.post('/api/get-player', async (req, res) => {
         greenhouse: { planted: null, upgrades: { light: 0, soil: 0, fence: 0 }, readyAt: 0 },
         hasAutoCollector: false, hasSpeedBooster: false, isVip: false,
         dailyStreak: 0, lastDailyClaim: 0, usedPromos: [],
-        achievements: {}, stats: { harvests: 0, ghHarvests: 0, rainbow: 0 },
-        lastSeen: new Date(), createdAt: new Date()
+        achievements: {}, stats: { harvests: 0, ghHarvests: 0, rainbow: 0, coinsSpent: 0, wheelSpins: 0 },
+        lastSeen: new Date(), createdAt: new Date(),
+        // ДОБАВЛЯЕМ НЕДОСТАЮЩИЕ ПОЛЯ:
+        lastTick: Date.now(),
+        lastAdTime: 0,
+        lastWheelSpin: 0,
+        feedEndTime: 0,
+        activeEvent: null,
+        quests: { daily: null, weekly: null, dailyTime: 0, weeklyTime: 0, dailyClaimed: false, weeklyClaimed: false },
+        referralCount: 0, referredBy: null, referralRewarded: false,
+        selectedCrop: 'wheat', sound: true, tempVipEndTime: 0,
+        hasGoldenShovel: false, hasLifeElixir: false, hasBusinessCenter: false
       };
       await playersCollection.insertOne(newPlayer);
       player = newPlayer;
