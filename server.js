@@ -169,7 +169,14 @@ app.post('/api/save-player', async (req, res) => {
     if (!validation.valid) return res.status(401).json({ error: 'Unauthorized' });
 
     const telegramId = validation.user.id.toString();
-    if (playerData.coins < 0 || playerData.level < 1) return res.status(400).json({ error: 'Invalid data' });
+    
+    // --- ЗАЩИТА БАЗЫ ДАННЫХ ОТ ПОВРЕЖДЕНИЯ ---
+    if (typeof playerData.coins !== 'number' || playerData.coins < 0) playerData.coins = 100;
+    if (typeof playerData.level !== 'number' || playerData.level < 1) playerData.level = 1;
+    if (!Array.isArray(playerData.usedPromos)) playerData.usedPromos = [];
+    if (!Array.isArray(playerData.plots)) playerData.plots = Array.from({ length: 6 }, () => null);
+    if (typeof playerData.stats !== 'object' || playerData.stats === null) playerData.stats = { harvests: 0, ghHarvests: 0, rainbow: 0 };
+    // ------------------------------------------
 
     delete playerData._id; delete playerData.telegramId; delete playerData.createdAt;
     playerData.lastSeen = new Date();
